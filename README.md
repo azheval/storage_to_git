@@ -1,4 +1,4 @@
-# delete_testing_regions
+# storage_to_git
 
 ![build](https://github.com/azheval/storage_to_git/actions/workflows/release.yml/badge.svg)
 
