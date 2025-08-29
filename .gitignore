@@ -1,0 +1,10 @@
+config.json
+demo
+storage_to_git*
+.gemini
+gemini.md
+log*.txt
+/docs/local
+Makefile
+
+Makefile

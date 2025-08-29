@@ -1,0 +1,64 @@
+@startuml
+title Последовательность выполнения проекта
+
+actor "Планировщик" as Scheduler
+participant "Runner" as Runner
+participant "1cv8.exe" as V8
+participant "Git" as Git
+database "Хранилище 1С" as Storage
+database "Git-репозиторий" as Repo
+
+Scheduler -> Runner : processProject()
+activate Runner
+
+Runner -> V8 : /ConfigurationRepositoryReport
+activate V8
+V8 -> Storage : Чтение истории
+V8 --> Runner : Возврат отчета
+deactivate V8
+
+Runner -> Runner : Парсинг отчета, фильтрация новых версий
+
+loop для каждой новой версии
+    Runner -> V8 : /ConfigurationRepositoryUpdateCfg
+    activate V8
+    V8 -> Storage : Получение версии
+    V8 --> Runner : Обновление ИБ
+    deactivate V8
+
+    Runner -> V8 : /DumpConfigToFiles
+    activate V8
+    V8 --> Runner : Выгрузка исходников
+    deactivate V8
+
+    Runner -> Git : git add .
+    activate Git
+    Git --> Runner
+    deactivate Git
+
+    Runner -> Git : git commit
+    activate Git
+    Git -> Repo : Запись коммита
+    Git --> Runner
+    deactivate Git
+
+    alt push после каждого коммита
+        Runner -> Git : git push
+        activate Git
+        Git -> Repo : Отправка изменений
+        Git --> Runner
+        deactivate Git
+    end
+end
+
+alt push в конце
+    Runner -> Git : git push
+    activate Git
+    Git -> Repo : Отправка всех изменений
+    Git --> Runner
+    deactivate Git
+end
+
+deactivate Runner
+
+@enduml

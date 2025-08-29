@@ -1,0 +1,26 @@
+@startuml
+title Общая схема работы приложения
+
+cloud "config.json" as Config
+database "logs" as Logs
+
+package "storage_to_git" {
+  [Главный процесс] as Main
+  [Планировщик] as Scheduler
+  [Наблюдатель за конфигом] as Watcher
+
+  Main --> Config : Чтение при старте
+  Main --> Watcher : Запуск
+  Watcher -> Main : Уведомление об изменениях
+  Main --> Scheduler : Запуск/остановка проектов
+  Scheduler -> Main : Выполнение задач по расписанию
+
+  Main ..> Logs : Запись логов
+  Scheduler ..> Logs : Запись логов
+}
+
+actor Пользователь as User
+User -> Config : Редактирует
+User -> Main : Запускает/останавливает
+
+@enduml
