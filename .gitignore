@@ -6,5 +6,5 @@ gemini.md
 log*.txt
 /docs/local
 Makefile
-
-Makefile
+git-chglog.exe
+.chglog
