@@ -38,6 +38,7 @@ func Run(ctx context.Context, config *models.Config, project *models.Project, st
 	}
 
 	logFilePath := filepath.Join(filepath.Dir(project.ProjectDataPath), project.V8LogFilePath)
+	dumpFilePath := getDumpFilePath(logFilePath)
 
 	if project.Storage != nil {
 
@@ -53,12 +54,13 @@ func Run(ctx context.Context, config *models.Config, project *models.Project, st
 
 		reportFilePath := filepath.Join(filepath.Dir(project.ProjectDataPath), "cf.report")
 
-		commandLine := fmt.Sprintf("DESIGNER /DisableStartupDialogs %s %s /ConfigurationRepositoryReport %q -ReportFormat txt /OUT %q", infobase.ConnectionString(), storage.ConnectionString(), reportFilePath, logFilePath)
+		commandLine := fmt.Sprintf("DESIGNER /DisableStartupDialogs %s %s /ConfigurationRepositoryReport %q -ReportFormat txt /OUT %q /DumpResult %q", infobase.ConnectionString(), storage.ConnectionString(), reportFilePath, logFilePath, dumpFilePath)
 		logger.Info("Executing configuration repository report command")
 		args := splitCommandLine(commandLine)
-		_, err := executeCommand(logger, v8files.ThickClient, logFilePath, args...)
-		if err != nil {
+		_, err, hasError := executeCommand(logger, v8files.ThickClient, logFilePath, args...)
+		if err != nil || hasError {
 			logger.Error("Command execution failed", "error", err)
+			return
 		}
 	}
 
@@ -76,12 +78,13 @@ func Run(ctx context.Context, config *models.Config, project *models.Project, st
 
 		reportFilePath := filepath.Join(filepath.Dir(project.ProjectDataPath), fmt.Sprintf("%s.report", ext.ExtensionName))
 
-		commandLine := fmt.Sprintf("DESIGNER /DisableStartupDialogs %s %s /ConfigurationRepositoryReport %q -ReportFormat txt -Extension %s /OUT %q", infobase.ConnectionString(), extension.ConnectionString(), reportFilePath, ext.ExtensionName, logFilePath)
+		commandLine := fmt.Sprintf("DESIGNER /DisableStartupDialogs %s %s /ConfigurationRepositoryReport %q -ReportFormat txt -Extension %s /OUT %q /DumpResult %q", infobase.ConnectionString(), extension.ConnectionString(), reportFilePath, ext.ExtensionName, logFilePath, dumpFilePath)
 		logger.Info("Executing extension repository report command", "extension", ext.ExtensionName)
 		args := splitCommandLine(commandLine)
-		_, err := executeCommand(logger, v8files.ThickClient, logFilePath, args...)
-		if err != nil {
+		_, err, hasError := executeCommand(logger, v8files.ThickClient, logFilePath, args...)
+		if err != nil || hasError {
 			logger.Error("Command execution failed", "error", err)
+			return
 		}
 	}
 
@@ -151,20 +154,22 @@ func Run(ctx context.Context, config *models.Config, project *models.Project, st
 				User:           storageUser,
 			}
 
-			commandLine := fmt.Sprintf("DESIGNER /DisableStartupDialogs %s %s /ConfigurationRepositoryUnbindCfg -force /OUT %q", infobase.ConnectionString(), storage.ConnectionString(), logFilePath)
+			commandLine := fmt.Sprintf("DESIGNER /DisableStartupDialogs %s %s /ConfigurationRepositoryUnbindCfg -force /OUT %q /DumpResult %q", infobase.ConnectionString(), storage.ConnectionString(), logFilePath, dumpFilePath)
 			logger.Info("Executing unbind command")
 			args := splitCommandLine(commandLine)
-			_, err := executeCommand(logger, v8files.ThickClient, logFilePath, args...)
-			if err != nil {
+			_, err, hasError := executeCommand(logger, v8files.ThickClient, logFilePath, args...)
+			if err != nil || hasError {
 				logger.Error("Command unbind failed", "error", err)
+				return
 			}
 
-			commandLine = fmt.Sprintf("DESIGNER /DisableStartupDialogs %s %s /ConfigurationRepositoryUpdateCfg -v %s -force /OUT %q", infobase.ConnectionString(), storage.ConnectionString(), version.Version, logFilePath)
+			commandLine = fmt.Sprintf("DESIGNER /DisableStartupDialogs %s %s /ConfigurationRepositoryUpdateCfg -v %s -force /OUT %q /DumpResult %q", infobase.ConnectionString(), storage.ConnectionString(), version.Version, logFilePath, dumpFilePath)
 			logger.Info("Executing update command")
 			args = splitCommandLine(commandLine)
-			_, err = executeCommand(logger, v8files.ThickClient, logFilePath, args...)
-			if err != nil {
+			_, err, hasError = executeCommand(logger, v8files.ThickClient, logFilePath, args...)
+			if err != nil || hasError {
 				logger.Error("Command update failed", "error", err)
+				return
 			}
 
 			gitDumpPath := filepath.Join(project.GitRepositoryPath, version.Storage.GitRepositoryPath)
@@ -182,12 +187,13 @@ func Run(ctx context.Context, config *models.Config, project *models.Project, st
 				logger.Error("Error checking ConfigDumpInfo.xml", "path", dumpInfoPath, "error", err)
 			}
 
-			commandLine = fmt.Sprintf("DESIGNER /DisableStartupDialogs %s /DumpConfigToFiles %q %s /OUT %q", infobase.ConnectionString(), gitDumpPath, dumpFlags, logFilePath)
+			commandLine = fmt.Sprintf("DESIGNER /DisableStartupDialogs %s /DumpConfigToFiles %q %s /OUT %q /DumpResult %q", infobase.ConnectionString(), gitDumpPath, dumpFlags, logFilePath, dumpFilePath)
 			logger.Info("Executing dump to files command")
 			args = splitCommandLine(commandLine)
-			_, err = executeCommand(logger, v8files.ThickClient, logFilePath, args...)
-			if err != nil {
+			_, err, hasError = executeCommand(logger, v8files.ThickClient, logFilePath, args...)
+			if err != nil || hasError {
 				logger.Error("Command dump to files failed", "error", err)
+				return
 			}
 
 			logger.Info("Executing git commit")
@@ -220,20 +226,22 @@ func Run(ctx context.Context, config *models.Config, project *models.Project, st
 
 			extensionName := version.Extension.ExtensionName
 
-			commandLine := fmt.Sprintf("DESIGNER /DisableStartupDialogs %s %s /ConfigurationRepositoryUnbindCfg -force -Extension %s /OUT %q", infobase.ConnectionString(), storage.ConnectionString(), extensionName, logFilePath)
+			commandLine := fmt.Sprintf("DESIGNER /DisableStartupDialogs %s %s /ConfigurationRepositoryUnbindCfg -force -Extension %s /OUT %q /DumpResult %q", infobase.ConnectionString(), storage.ConnectionString(), extensionName, logFilePath, dumpFilePath)
 			logger.Info("Executing unbind command for extension")
 			args := splitCommandLine(commandLine)
-			_, err := executeCommand(logger, v8files.ThickClient, logFilePath, args...)
-			if err != nil {
+			_, err, hasError := executeCommand(logger, v8files.ThickClient, logFilePath, args...)
+			if err != nil || hasError {
 				logger.Error("Command unbind failed", "error", err)
+				return
 			}
 
-			commandLine = fmt.Sprintf("DESIGNER /DisableStartupStartupDialogs %s %s /ConfigurationRepositoryUpdateCfg -v %s -force -Extension %s /OUT %q", infobase.ConnectionString(), storage.ConnectionString(), version.Version, extensionName, logFilePath)
+			commandLine = fmt.Sprintf("DESIGNER /DisableStartupStartupDialogs %s %s /ConfigurationRepositoryUpdateCfg -v %s -force -Extension %s /OUT %q /DumpResult %q", infobase.ConnectionString(), storage.ConnectionString(), version.Version, extensionName, logFilePath, dumpFilePath)
 			logger.Info("Executing update command for extension")
 			args = splitCommandLine(commandLine)
-			_, err = executeCommand(logger, v8files.ThickClient, logFilePath, args...)
-			if err != nil {
+			_, err, hasError = executeCommand(logger, v8files.ThickClient, logFilePath, args...)
+			if err != nil || hasError {
 				logger.Error("Command update failed", "error", err)
+				return
 			}
 
 			gitDumpPath := filepath.Join(project.GitRepositoryPath, version.Extension.GitRepositoryPath, extensionName)
@@ -251,12 +259,13 @@ func Run(ctx context.Context, config *models.Config, project *models.Project, st
 				logger.Error("Error checking ConfigDumpInfo.xml", "path", dumpInfoPath, "error", err)
 			}
 
-			commandLine = fmt.Sprintf("DESIGNER /DisableStartupDialogs %s /DumpConfigToFiles %q %s -Extension %s /OUT %q", infobase.ConnectionString(), gitDumpPath, dumpFlags, extensionName, logFilePath)
+			commandLine = fmt.Sprintf("DESIGNER /DisableStartupDialogs %s /DumpConfigToFiles %q %s -Extension %s /OUT %q /DumpResult %q", infobase.ConnectionString(), gitDumpPath, dumpFlags, extensionName, logFilePath, dumpFilePath)
 			logger.Info("Executing dump to files command for extension")
 			args = splitCommandLine(commandLine)
-			_, err = executeCommand(logger, v8files.ThickClient, logFilePath, args...)
-			if err != nil {
+			_, err, hasError = executeCommand(logger, v8files.ThickClient, logFilePath, args...)
+			if err != nil || hasError {
 				logger.Error("Command dump to files failed", "error", err)
+				return
 			}
 
 			logger.Info("Executing git commands")
@@ -330,18 +339,20 @@ func splitCommandLine(s string) []string {
 	return args
 }
 
-func executeCommand(logger *slog.Logger, name, logFilePath string, arg ...string) ([]byte, error) {
+func executeCommand(logger *slog.Logger, name, logFilePath string, arg ...string) ([]byte, error, bool) {
 	cmd := exec.Command(name, arg...)
 
 	logger.Debug("Executing command", "command", cmd.String())
 
 	output, err := cmd.CombinedOutput()
 	Log1C(logger, logFilePath)
+
+	hasError := CheckForErrors(logger, logFilePath)
 	if err != nil {
 		logger.Error("Failed to execute command", "error", err, "output", string(output))
-		return output, fmt.Errorf("command execution failed: %w", err)
+		return output, fmt.Errorf("command execution failed: %w", err), hasError
 	}
 
 	logger.Info("Command executed successfully", "output", string(output))
-	return output, nil
+	return output, nil, hasError
 }
