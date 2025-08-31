@@ -1,0 +1,106 @@
+{
+  "log_level": "info",
+  "catalog_1cv8": "C:/Program Files/1cv8/8.3.24.1586/bin",
+  "projects": [
+    {
+      "project": "Project_1",
+      "catalog_1cv8": "",
+      "enabled": true,
+      "schedule": "1m",
+      "schedule_enabled": true,
+      "project_data_path": "C:/storage_to_git/projects_data/project_1/",
+      "users_file_path": "users.csv",
+      "versions_file_path": "versions.json",
+      "v8_log_file_path": "log.txt",
+      "git_repository_path": "C:/storage_to_git/demo/project_1/git_repo/",
+      "branch_name": "main",
+      "git_remote_url": "C:/storage_to_git/demo/project_1/git_temp",
+      "git_push_enabled": true,
+      "git_push_timing_after_each_commit": true,
+      "infobase": {
+        "infobase_path": "File=C:/storage_to_git/demo/project_1/base",
+        "infobase_user": "ci_bot",
+        "infobase_password": ""
+      },
+      "storage": {
+        "storage_path": "C:/storage_to_git/demo/project_1/storages/storage",
+        "storage_user": "ci_bot",
+        "storage_password": "ci_bot",
+        "git_repository_path": "src/cf"
+      }
+    },
+    {
+      "project": "Project_2",
+      "catalog_1cv8": "",
+      "enabled": false,
+      "schedule": "1m",
+      "schedule_enabled": true,
+      "project_data_path": "C:/storage_to_git/projects_data/project_2/",
+      "users_file_path": "users.csv",
+      "versions_file_path": "versions.json",
+      "v8_log_file_path": "log.txt",
+      "git_repository_path": "C:/storage_to_git/demo/project_2/git_repo/",
+      "branch_name": "main",
+      "git_remote_url": "",
+      "git_push_enabled": false,
+      "git_push_timing_after_each_commit": false,
+      "infobase": {
+        "infobase_path": "File=C:/storage_to_git/demo/project_2/base",
+        "infobase_user": "",
+        "infobase_password": ""
+      },
+      "storage": {
+        "storage_path": "C:/storage_to_git/demo/project_2/storages/storage",
+        "storage_user": "ci_bot",
+        "storage_password": "ci_bot",
+        "git_repository_path": "src/cf"
+      },
+      "extensions": [
+        {
+          "extension_name": "Расширение1",
+          "storage_path": "C:/storage_to_git/demo/project_2/storages/ext_1",
+          "storage_user": "ci_bot",
+          "storage_password": "ci_bot",
+          "git_repository_path": "src/cfe/"
+        }
+      ]
+    },
+    {
+      "project": "Project_3",
+      "catalog_1cv8": "",
+      "enabled": false,
+      "schedule": "1m",
+      "schedule_enabled": true,
+      "project_data_path": "C:/storage_to_git/projects_data/project_3/",
+      "users_file_path": "users.csv",
+      "versions_file_path": "versions.json",
+      "v8_log_file_path": "log.txt",
+      "git_repository_path": "C:/storage_to_git/demo/project_3/git_repo/",
+      "branch_name": "main",
+      "git_remote_url": "",
+      "git_push_enabled": false,
+      "git_push_timing_after_each_commit": false,
+      "infobase": {
+        "infobase_path": "File=C:/storage_to_git/demo/project_3/base",
+        "infobase_user": "",
+        "infobase_password": ""
+      },
+      "extensions": [
+          {
+            "extension_name": "Расширение1",
+            "storage_path": "C:/storage_to_git/demo/project_3/storages/ext_1",
+            "storage_user": "ci_bot",
+            "storage_password": "",
+            "git_repository_path": "src/cfe/"
+          },
+          {
+            "extension_name": "Расширение2",
+            "storage_path": "C:/storage_to_git/demo/project_3/storages/ext_2",
+            "storage_user": "ci_bot",
+            "storage_password": "",
+            "git_repository_path": "src/cfe/"
+          }
+        ]
+    }
+  ]
+}
