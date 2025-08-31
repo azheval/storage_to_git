@@ -15,6 +15,12 @@ import (
 	"storage_to_git/models"
 )
 
+func getNBeginFlag(version int) string {
+	if version > 0 {
+		return fmt.Sprintf("-NBegin %d", version+1)
+	}
+	return ""
+}
 
 func Run(ctx context.Context, config *models.Config, project *models.Project, storageUsers []models.UserMapping) {
 	logger := models.FromContext(ctx)
@@ -40,6 +46,13 @@ func Run(ctx context.Context, config *models.Config, project *models.Project, st
 	logFilePath := filepath.Join(filepath.Dir(project.ProjectDataPath), project.V8LogFilePath)
 	dumpFilePath := getDumpFilePath(logFilePath)
 
+	versionFilePath := filepath.Join(project.ProjectDataPath, project.VersionsFilePath)
+	versionMap, err := readVersionsConfig(versionFilePath)
+	if err != nil {
+		logger.Error("Failed to read versions config", "error", err)
+		return
+	}
+
 	if project.Storage != nil {
 
 		storageUser := &StorageUser{
@@ -53,8 +66,9 @@ func Run(ctx context.Context, config *models.Config, project *models.Project, st
 		}
 
 		reportFilePath := filepath.Join(filepath.Dir(project.ProjectDataPath), "cf.report")
+		nbeginFlag := getNBeginFlag(versionMap["cf"])
 
-		commandLine := fmt.Sprintf("DESIGNER /DisableStartupDialogs %s %s /ConfigurationRepositoryReport %q -ReportFormat txt /OUT %q /DumpResult %q", infobase.ConnectionString(), storage.ConnectionString(), reportFilePath, logFilePath, dumpFilePath)
+		commandLine := fmt.Sprintf("DESIGNER /DisableStartupDialogs %s %s /ConfigurationRepositoryReport %q %s -ReportFormat txt /OUT %q /DumpResult %q", infobase.ConnectionString(), storage.ConnectionString(), reportFilePath, nbeginFlag, logFilePath, dumpFilePath)
 		logger.Info("Executing configuration repository report command")
 		args := splitCommandLine(commandLine)
 		_, err, hasError := executeCommand(logger, v8files.ThickClient, logFilePath, args...)
@@ -77,8 +91,9 @@ func Run(ctx context.Context, config *models.Config, project *models.Project, st
 		}
 
 		reportFilePath := filepath.Join(filepath.Dir(project.ProjectDataPath), fmt.Sprintf("%s.report", ext.ExtensionName))
+		nbeginFlag := getNBeginFlag(versionMap[ext.ExtensionName])
 
-		commandLine := fmt.Sprintf("DESIGNER /DisableStartupDialogs %s %s /ConfigurationRepositoryReport %q -ReportFormat txt -Extension %s /OUT %q /DumpResult %q", infobase.ConnectionString(), extension.ConnectionString(), reportFilePath, ext.ExtensionName, logFilePath, dumpFilePath)
+		commandLine := fmt.Sprintf("DESIGNER /DisableStartupDialogs %s %s /ConfigurationRepositoryReport %q %s -ReportFormat txt -Extension %s /OUT %q /DumpResult %q", infobase.ConnectionString(), extension.ConnectionString(), reportFilePath, nbeginFlag, ext.ExtensionName, logFilePath, dumpFilePath)
 		logger.Info("Executing extension repository report command", "extension", ext.ExtensionName)
 		args := splitCommandLine(commandLine)
 		_, err, hasError := executeCommand(logger, v8files.ThickClient, logFilePath, args...)
@@ -86,13 +101,6 @@ func Run(ctx context.Context, config *models.Config, project *models.Project, st
 			logger.Error("Command execution failed", "error", err)
 			return
 		}
-	}
-
-	versionFilePath := filepath.Join(project.ProjectDataPath, project.VersionsFilePath)
-	versionMap, err := readVersionsConfig(versionFilePath)
-	if err != nil {
-		logger.Error("Failed to read versions config", "error", err)
-		return
 	}
 
 	reports, err := processReports(logger, project.ProjectDataPath, storageUsers, project)
