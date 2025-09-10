@@ -4,6 +4,7 @@ import "time"
 
 type ReportVersion struct {
 	Version           string
+	Label             string
 	ConfigVersion     string
 	User              UserMapping
 	CreationDate      time.Time

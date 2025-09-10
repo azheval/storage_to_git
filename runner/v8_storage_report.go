@@ -53,7 +53,9 @@ func parseReportFile(logger *slog.Logger, filePath string, storageUsers []models
 	}
 	scanner := bufio.NewScanner(file)
 	var currentVersion *models.ReportVersion
+	var inComment bool
 
+	// First line is special for storage path
 	if scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if strings.Contains(strings.ToLower(line), "отчет по версиям хранилища:") {
@@ -67,96 +69,104 @@ func parseReportFile(logger *slog.Logger, filePath string, storageUsers []models
 	}
 
 	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
+		line := scanner.Text() // Keep original spacing for comments
+		trimmedLine := strings.TrimSpace(line)
+
+		if trimmedLine == "" {
+			if inComment && currentVersion != nil {
+				currentVersion.Comment += "\n" // Preserve empty lines in comments
+			}
 			continue
 		}
 
-		if strings.HasPrefix(line, "Дата отчета:") {
-			dateStr := strings.TrimSpace(strings.SplitN(line, ":", 2)[1])
+		// Check for fields that stop a multiline comment
+		if strings.HasPrefix(trimmedLine, "Метка:") ||
+			strings.HasPrefix(trimmedLine, "Комментарий метки:") ||
+			strings.HasPrefix(trimmedLine, "Добавлены") ||
+			strings.HasPrefix(trimmedLine, "Изменены") ||
+			(strings.HasPrefix(trimmedLine, "Версия:") && !strings.Contains(trimmedLine, "Версия конфигурации")) {
+			inComment = false
+		}
+
+		if strings.HasPrefix(trimmedLine, "Дата отчета:") {
+			dateStr := strings.TrimSpace(strings.SplitN(trimmedLine, ":", 2)[1])
 			report.ReportDate, err = parseDate(dateStr)
 			if err != nil {
 				return nil, fmt.Errorf("error parsing report date: %v", err)
 			}
-		} else if strings.HasPrefix(line, "Время отчета:") {
-			timeStr := strings.TrimSpace(strings.SplitN(line, ":", 2)[1])
+		} else if strings.HasPrefix(trimmedLine, "Время отчета:") {
+			timeStr := strings.TrimSpace(strings.SplitN(trimmedLine, ":", 2)[1])
 			report.ReportTime, err = parseTime(timeStr)
 			if err != nil {
 				return nil, fmt.Errorf("error parsing report time: %v", err)
 			}
-		}
-
-		// Парсим информацию о версиях
-		if strings.HasPrefix(line, "Версия:") && !strings.Contains(line, "Версия конфигурации") {
+		} else if strings.HasPrefix(trimmedLine, "Версия:") && !strings.Contains(trimmedLine, "Версия конфигурации") {
 			if currentVersion != nil {
 				report.Versions = append(report.Versions, *currentVersion)
 			}
-
-			version := strings.TrimSpace(strings.SplitN(line, ":", 2)[1])
+			version := strings.TrimSpace(strings.SplitN(trimmedLine, ":", 2)[1])
 			currentVersion = &models.ReportVersion{
 				Version:     version,
 				FileName:    report.FileName,
 				StoragePath: report.StoragePath,
 			}
-
+			// Associate storage/extension
 			if strings.HasSuffix(report.FileName, "cf.report") {
-				storage := findStorage(logger, project, report.StoragePath)
-				if storage != nil {
+				if storage := findStorage(logger, project, report.StoragePath); storage != nil {
 					currentVersion.Storage = *storage
 				}
 			} else {
-				extension := findExtension(logger, project, report.StoragePath)
-				if extension != nil {
+				if extension := findExtension(logger, project, report.StoragePath); extension != nil {
 					currentVersion.Extension = *extension
 				}
 			}
-
 		} else if currentVersion != nil {
-			if strings.HasPrefix(line, "Версия конфигурации:") {
-				currentVersion.ConfigVersion = strings.TrimSpace(strings.SplitN(line, ":", 2)[1])
-			} else if strings.HasPrefix(line, "Пользователь:") {
-				currentVersion.User = findUserMapping(storageUsers, strings.TrimSpace(strings.SplitN(line, ":", 2)[1]))
-			} else if strings.HasPrefix(line, "Дата создания:") {
-				dateStr := strings.TrimSpace(strings.SplitN(line, ":", 2)[1])
+			// These fields are part of a version block
+			if strings.HasPrefix(trimmedLine, "Версия конфигурации:") {
+				currentVersion.ConfigVersion = strings.TrimSpace(strings.SplitN(trimmedLine, ":", 2)[1])
+			} else if strings.HasPrefix(trimmedLine, "Пользователь:") {
+				currentVersion.User = findUserMapping(storageUsers, strings.TrimSpace(strings.SplitN(trimmedLine, ":", 2)[1]))
+			} else if strings.HasPrefix(trimmedLine, "Дата создания:") {
+				dateStr := strings.TrimSpace(strings.SplitN(trimmedLine, ":", 2)[1])
 				currentVersion.CreationDate, err = parseDate(dateStr)
 				if err != nil {
 					return nil, fmt.Errorf("error parsing creation date: %v", err)
 				}
-			} else if strings.HasPrefix(line, "Время создания:") {
-				timeStr := strings.TrimSpace(strings.SplitN(line, ":", 2)[1])
+			} else if strings.HasPrefix(trimmedLine, "Время создания:") {
+				timeStr := strings.TrimSpace(strings.SplitN(trimmedLine, ":", 2)[1])
 				currentVersion.CreationTime, err = parseTime(timeStr)
 				if err != nil {
 					return nil, fmt.Errorf("error parsing creation time: %v", err)
 				}
-			} else if strings.HasPrefix(line, "Комментарий:") {
-				comment := strings.TrimSpace(strings.SplitN(line, ":", 2)[1])
-				// Читаем многострочный комментарий
-				for scanner.Scan() {
-					nextLine := strings.TrimSpace(scanner.Text())
-					if nextLine == "" || strings.Contains(nextLine, ":") {
-						break
-					}
-					comment += "\n" + nextLine
-				}
-				currentVersion.Comment = comment
-			} else if strings.Contains(line, "Добавлены") {
-				parts := strings.Fields(line)
+			} else if strings.HasPrefix(trimmedLine, "Комментарий:") {
+				currentVersion.Comment = strings.TrimSpace(strings.SplitN(trimmedLine, ":", 2)[1])
+				inComment = true
+			} else if strings.HasPrefix(trimmedLine, "Метка:") {
+				currentVersion.Label = strings.TrimSpace(strings.SplitN(trimmedLine, ":", 2)[1])
+			} else if strings.HasPrefix(trimmedLine, "Комментарий метки:") {
+				// Ignore
+			} else if strings.Contains(trimmedLine, "Добавлены") {
+				parts := strings.Fields(trimmedLine)
 				if len(parts) >= 2 {
 					if _, err := fmt.Sscanf(parts[1], "%d", &currentVersion.AddedCount); err != nil {
-						logger.Warn("error reading AddedCount", "line", line, "error", err)
+						logger.Warn("error reading AddedCount", "line", trimmedLine, "error", err)
 					}
 				}
-			} else if strings.Contains(line, "Изменены") {
-				parts := strings.Fields(line)
+			} else if strings.Contains(trimmedLine, "Изменены") {
+				parts := strings.Fields(trimmedLine)
 				if len(parts) >= 2 {
 					if _, err := fmt.Sscanf(parts[1], "%d", &currentVersion.ChangedCount); err != nil {
-						logger.Warn("error reading ChangedCount", "line", line, "error", err)
+						logger.Warn("error reading ChangedCount", "line", trimmedLine, "error", err)
 					}
 				}
+			} else if inComment {
+				// This is a continuation of a multiline comment
+				currentVersion.Comment += "\n" + line
 			}
 		}
 	}
 
+	// Add the last parsed version
 	if currentVersion != nil {
 		report.Versions = append(report.Versions, *currentVersion)
 	}

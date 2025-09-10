@@ -142,3 +142,32 @@ func (r *Repository) Push(logger *slog.Logger, remote, branch string) error {
 	logger.Info("Git push successful", "output", string(output))
 	return nil
 }
+
+func (r *Repository) Tag(logger *slog.Logger, tagName string) error {
+	logger.Info("Creating git tag", "repo", r.Path, "tag", tagName)
+	tagCmd := exec.Command("git", "tag", tagName)
+	tagCmd.Dir = r.Path
+	output, err := tagCmd.CombinedOutput()
+	if err != nil {
+		// git tag returns status 1 if tag already exists
+		if strings.Contains(string(output), "already exists") {
+			logger.Warn("git tag already exists", "tag", tagName, "output", string(output))
+			return nil
+		}
+		return fmt.Errorf("git tag failed: %w, output: %s", err, string(output))
+	}
+	logger.Info("Git tag successful", "output", string(output))
+	return nil
+}
+
+func (r *Repository) PushTags(logger *slog.Logger, remote string) error {
+	logger.Info("Pushing tags to remote", "repo", r.Path, "remote", remote)
+	pushCmd := exec.Command("git", "push", remote, "--tags")
+	pushCmd.Dir = r.Path
+	output, err := pushCmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("git push --tags failed: %w, output: %s", err, string(output))
+	}
+	logger.Info("Git push tags successful", "output", string(output))
+	return nil
+}

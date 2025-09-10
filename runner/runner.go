@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 	"unicode"
@@ -132,6 +133,7 @@ func Run(ctx context.Context, config *models.Config, project *models.Project, st
 	}
 
 	pushNeeded := false
+	tagsPushed := false
 
 	for _, version := range filteredVersions {
 		logger.Info("Processing version", "version", version.Version)
@@ -181,7 +183,7 @@ func Run(ctx context.Context, config *models.Config, project *models.Project, st
 			}
 
 			gitDumpPath := filepath.Join(project.GitRepositoryPath, version.Storage.GitRepositoryPath)
-			
+
 			if err := os.MkdirAll(gitDumpPath, os.ModePerm); err != nil {
 				logger.Error("Failed to create directory for git repository", "path", gitDumpPath, "error", err)
 				continue
@@ -253,7 +255,7 @@ func Run(ctx context.Context, config *models.Config, project *models.Project, st
 			}
 
 			gitDumpPath := filepath.Join(project.GitRepositoryPath, version.Extension.GitRepositoryPath, extensionName)
-			
+
 			if err := os.MkdirAll(gitDumpPath, os.ModePerm); err != nil {
 				logger.Error("Failed to create directory for git repository", "path", gitDumpPath, "error", err)
 				continue
@@ -292,12 +294,26 @@ func Run(ctx context.Context, config *models.Config, project *models.Project, st
 			}
 		}
 
-		if commitSuccess && project.GitPushEnabled {
-			pushNeeded = true
-			if project.GitPushTimingAfterEachCommit {
-				logger.Info("Pushing after each commit", "repo", mainRepo.Path)
-				if err := mainRepo.Push(logger, "origin", project.BranchName); err != nil {
-					logger.Error("Git push failed", "error", err)
+		if commitSuccess {
+			if version.Label != "" {
+				tagName := sanitizeTagName(version.Label)
+				if err := mainRepo.Tag(logger, tagName); err != nil {
+					logger.Error("Git tag failed", "tag", tagName, "error", err)
+				}
+			}
+			if project.GitPushEnabled {
+				pushNeeded = true
+				if project.GitPushTimingAfterEachCommit {
+					logger.Info("Pushing after each commit", "repo", mainRepo.Path)
+					if err := mainRepo.Push(logger, "origin", project.BranchName); err != nil {
+						logger.Error("Git push failed", "error", err)
+					}
+					if version.Label != "" {
+						if err := mainRepo.PushTags(logger, "origin"); err != nil {
+							logger.Error("Git push tags failed", "error", err)
+						}
+					}
+					tagsPushed = true
 				}
 			}
 		}
@@ -316,9 +332,23 @@ func Run(ctx context.Context, config *models.Config, project *models.Project, st
 		if err := mainRepo.Push(logger, "origin", project.BranchName); err != nil {
 			logger.Error("Git push failed", "repo", mainRepo.Path, "error", err)
 		}
+		if !tagsPushed {
+			if err := mainRepo.PushTags(logger, "origin"); err != nil {
+				logger.Error("Git push tags failed", "repo", mainRepo.Path, "error", err)
+			}
+		}
 	}
 
 	logger.Info("Runner completed successfully")
+}
+
+var invalidTagChars = regexp.MustCompile(`[^a-zA-Z0-9_.-]`)
+
+func sanitizeTagName(name string) string {
+	// Replace spaces with hyphens
+	name = strings.ReplaceAll(name, " ", "-")
+	// Remove any other invalid characters
+	return invalidTagChars.ReplaceAllString(name, "")
 }
 
 func splitCommandLine(s string) []string {
