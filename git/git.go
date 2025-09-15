@@ -127,7 +127,7 @@ func (r *Repository) Commit(logger *slog.Logger, authorName, authorEmail, messag
 		return false, fmt.Errorf("git commit failed: %w, output: %s", err, string(output))
 	}
 
-	logger.Info("Git commit successful", "output", string(output))
+	logger.Info("Git commit successful", "output", "")
 	return true, nil
 }
 
