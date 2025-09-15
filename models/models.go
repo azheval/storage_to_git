@@ -20,6 +20,7 @@ func FromContext(ctx context.Context) *slog.Logger {
 
 type Config struct {
 	LogLevel    string    `json:"log_level"`
+	AppLogDir   string    `json:"app_log_dir"`
 	Catalog1cv8 string    `json:"catalog_1cv8"`
 	Projects    []Project `json:"projects"`
 }

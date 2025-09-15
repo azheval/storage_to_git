@@ -69,7 +69,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	logsDirPath := filepath.Join(filepath.Dir(configPath), "logs")
+	if !filepath.IsAbs(config.AppLogDir) {
+		config.AppLogDir = filepath.Join(filepath.Dir(configPath), config.AppLogDir)
+	}
+
+	logsDirPath := config.AppLogDir
 	if _, err := os.Stat(logsDirPath); os.IsNotExist(err) {
 		if err := os.Mkdir(logsDirPath, os.ModePerm); err != nil {
 			println("Failed to create logs directory: " + err.Error())
@@ -77,7 +81,7 @@ func main() {
 		}
 	}
 
-	logfileName := fmt.Sprintf("log-%s.txt", time.Now().Format("2006-01-02"))
+	logfileName := fmt.Sprintf("storage_to_git-%s.log", time.Now().Format("2006-01-02"))
 	logPath := filepath.Join(logsDirPath, logfileName)
 	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
@@ -280,8 +284,7 @@ func processProject(ctx context.Context, config *models.Config, project *models.
 		logger.Error("Error loading user mappings for project", "error", err)
 		return
 	}
-	logger.Info("Successfully loaded users for project", "users", users)
+	logger.Debug("Successfully loaded users for project", "users", users)
 
-	// Call the runner
 	runner.Run(ctx, config, project, users)
 }

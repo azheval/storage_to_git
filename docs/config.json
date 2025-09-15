@@ -1,5 +1,6 @@
 {
   "log_level": "info",
+  "app_log_dir": "C:/storage_to_git/logs/",
   "catalog_1cv8": "C:/Program Files/1cv8/8.3.24.1586/bin",
   "projects": [
     {
